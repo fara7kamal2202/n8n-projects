@@ -1,0 +1,229 @@
+{
+  "name": "x-blogger",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=AI+tools",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -16
+      ],
+      "id": "7202acfc-d348-45a7-ae4f-3a9e486e1be0",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -16
+      ],
+      "id": "b02f2099-d20d-4354-b914-1c35e38febde",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.output.tweet }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -16
+      ],
+      "id": "dcd02283-d9f7-4cf4-af96-4962cc08a0c1",
+      "name": "Create Tweet",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "g5G4ldbd3JETvWDu",
+          "name": "X account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.rss_summary_prompt }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You will receive a number of AI news articles\n\nPick the most impactful or insightful one.\n\nGenerate a tweet from it.\nThe hard character limit for the tweet is 250 characters. Don't go over that.\n\n\nAlso extract the article link and place it in the correct variable in the output. Do not include the link in the tweet, only in the output JSON.\nGenerate 2-4 relevant hashtags and add them to the JSON.\nSame for hashtags, not in the tweet, only in the JSON. When adding hashtags to the output, include the hash for each."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        -16
+      ],
+      "id": "dcc67517-7d27-422b-a06e-e9dc06b74c85",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "const articles = items.map(item => {\n  return `• ${item.json.title} — ${item.json.link}`;\n});\n\nconst prompt = articles.join('\\n');\n\nreturn [\n  {\n    json: {\n      rss_summary_prompt: prompt\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -16
+      ],
+      "id": "aa3dd370-aa45-4e6b-93fa-8a9613db4ff2",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -16
+      ],
+      "id": "4a665276-a55a-4b88-9df5-470a19a778a9",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        904,
+        208
+      ],
+      "id": "386ef46c-06ce-4c5b-86dd-3b6cde326010",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "gUGz6rfpxPYPdgtF",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"tweet\": \"Tweet\",\n    \"hashtags\": \"Hashtags separated by commas\",\n    \"link\": \"Article link\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1032,
+        208
+      ],
+      "id": "a5195260-da21-4e00-9a09-653579ef9132",
+      "name": "Structured Output Parser"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Tweet": {
+      "main": [
+        []
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "70c50877-5ca2-4891-baf1-c3e821fba2f1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e71e76bea3fd536b009582b4a7bb4597684cf530b13db554ba76b7646ee5038b"
+  },
+  "id": "fqFYlHOcerFNgHO9",
+  "tags": []
+}
